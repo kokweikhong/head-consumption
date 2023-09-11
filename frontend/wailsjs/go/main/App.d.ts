@@ -7,12 +7,14 @@ export function BrowseExcelFile():Promise<string>;
 
 export function GeneratePlotData(arg1:Array<any>,arg2:Array<any>,arg3:number,arg4:number):Promise<any>;
 
+export function GetDatabaseDataDateFormat(arg1:string,arg2:string):Promise<string>;
+
 export function GetExcelSheets(arg1:string):Promise<Array<string>>;
 
 export function Greet(arg1:string):Promise<string>;
 
 export function OpenMessageDialog(arg1:string,arg2:string,arg3:string):Promise<string>;
 
-export function ReadDatabaseDataFromExcel(arg1:string,arg2:string,arg3:number,arg4:number):Promise<Array<any>>;
+export function ReadDatabaseDataFromExcel(arg1:string,arg2:string,arg3:number,arg4:number,arg5:string):Promise<Array<any>>;
 
 export function ReadManualDataFromExcel(arg1:string,arg2:Array<string>,arg3:number,arg4:number):Promise<Array<any>>;

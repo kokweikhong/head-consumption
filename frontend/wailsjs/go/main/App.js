@@ -14,6 +14,10 @@ export function GeneratePlotData(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['GeneratePlotData'](arg1, arg2, arg3, arg4);
 }
 
+export function GetDatabaseDataDateFormat(arg1, arg2) {
+  return window['go']['main']['App']['GetDatabaseDataDateFormat'](arg1, arg2);
+}
+
 export function GetExcelSheets(arg1) {
   return window['go']['main']['App']['GetExcelSheets'](arg1);
 }
@@ -26,8 +30,8 @@ export function OpenMessageDialog(arg1, arg2, arg3) {
   return window['go']['main']['App']['OpenMessageDialog'](arg1, arg2, arg3);
 }
 
-export function ReadDatabaseDataFromExcel(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['ReadDatabaseDataFromExcel'](arg1, arg2, arg3, arg4);
+export function ReadDatabaseDataFromExcel(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['ReadDatabaseDataFromExcel'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function ReadManualDataFromExcel(arg1, arg2, arg3, arg4) {

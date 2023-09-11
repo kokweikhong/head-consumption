@@ -1,6 +1,9 @@
 import React from "react";
-import { useForm } from "react-hook-form";
-import { ReadDatabaseDataFromExcel } from "../../wailsjs/go/main/App";
+import { set, useForm } from "react-hook-form";
+import {
+  ReadDatabaseDataFromExcel,
+  GetDatabaseDataDateFormat,
+} from "../../wailsjs/go/main/App";
 import {
   handleBrowseExcelFile,
   handleGetExcelSheets,
@@ -26,6 +29,7 @@ import { FolderOpen } from "lucide-react";
 interface IDatabaseFormValues {
   excelFile: string;
   sheet: string;
+  timeFormat: string;
   month: number;
   year: number;
 }
@@ -40,16 +44,46 @@ export const DatabaseForm: React.FC<DatabaseFormProps> = ({
   setDatabaseData,
 }) => {
   const [sheets, setSheets] = React.useState<string[]>([]);
+  const [timeFormat, setTimeFormat] =
+    React.useState<string>("select sheet first");
+  const timeFormats: { label: string; value: string }[] = [
+    { label: "d/m/yy", value: "2/1/06" },
+    { label: "d/m/yyyy", value: "2/1/2006" },
+    { label: "dd/mm/yy", value: "02/01/06" },
+    { label: "dd/mm/yyyy", value: "02/01/2006" },
+    { label: "m/d/yy", value: "1/2/06" },
+    { label: "mm/dd/yyyy", value: "1/2/2006" },
+    { label: "mm/dd/yy", value: "01/02/06" },
+    { label: "mm/dd/yyyy", value: "01/02/2006" },
+
+    { label: "m/d/yy hh:mm", value: "1/2/06 15:04" },
+    { label: "m/d/yy hh:mm:ss", value: "1/2/06 15:04:05" },
+    { label: "m/d/yyyy hh:mm", value: "1/2/2006 15:04" },
+    { label: "m/d/yyyy hh:mm:ss", value: "1/2/2006 15:04:05" },
+    { label: "mm/dd/yyyy hh:mm", value: "01/02/2006 15:04" },
+    { label: "mm/dd/yyyy hh:mm:ss", value: "01/02/2006 15:04:05" },
+    { label: "mm/dd/yy hh:mm", value: "01/02/06 15:04" },
+    { label: "mm/dd/yy hh:mm:ss", value: "01/02/06 15:04:05" },
+    { label: "d/m/yy hh:mm", value: "2/1/06 15:04" },
+    { label: "d/m/yy hh:mm:ss", value: "2/1/06 15:04:05" },
+    { label: "dd/mm/yy hh:mm", value: "02/01/06 15:04" },
+    { label: "dd/mm/yy hh:mm:ss", value: "02/01/06 15:04:05" },
+    { label: "dd/mm/yyyy hh:mm", value: "02/01/2006 15:04" },
+    { label: "dd/mm/yyyy hh:mm:ss", value: "02/01/2006 15:04:05" },
+  ];
 
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
+    reset,
     formState: { errors },
   } = useForm<IDatabaseFormValues>({
     defaultValues: {
       excelFile: "",
       sheet: "",
+      timeFormat: "",
       month: 0,
       year: 0,
     },
@@ -61,7 +95,8 @@ export const DatabaseForm: React.FC<DatabaseFormProps> = ({
         data.excelFile,
         data.sheet,
         data.month,
-        data.year
+        data.year,
+        data.timeFormat
       );
       setDatabaseData(res);
       console.log(res);
@@ -76,6 +111,8 @@ export const DatabaseForm: React.FC<DatabaseFormProps> = ({
         title: "Read Database Excel File",
         message: `${error}`,
       });
+    } finally {
+      reset();
     }
   });
   return (
@@ -93,33 +130,45 @@ export const DatabaseForm: React.FC<DatabaseFormProps> = ({
           : "data not exist"}
       </Badge>
       <div className="flex flex-col gap-2">
-        <Label>Select Database Excel File :</Label>
-        <div className="flex gap-2 items-center">
-          <Input
-            {...register("excelFile", {
-              required: true,
-            })}
-          />
-          <Button
-            type="button"
-            onClick={async () => {
-              const filePath = await handleBrowseExcelFile();
-              const sheets = await handleGetExcelSheets(filePath);
-              setValue("excelFile", filePath);
-              setSheets(sheets);
-            }}
-          >
-            <FolderOpen size={18} />
-          </Button>
+        <div className="flex flex-col gap-2">
+          <Label>Select Database Excel File :</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              {...register("excelFile", {
+                required: true,
+              })}
+            />
+            <Button
+              type="button"
+              onClick={async () => {
+                reset();
+                const filePath = await handleBrowseExcelFile();
+                const sheets = await handleGetExcelSheets(filePath);
+                setValue("excelFile", filePath);
+                setSheets(sheets);
+              }}
+            >
+              <FolderOpen size={18} />
+            </Button>
+          </div>
+          {errors.excelFile && (
+            <Badge variant="destructive">This field is required</Badge>
+          )}
         </div>
-        {errors.excelFile && (
-          <Badge variant="destructive">This field is required</Badge>
-        )}
 
         <div>
           <Label>Select Sheet :</Label>
-          <Select onValueChange={(e) => setValue("sheet", e)}>
-            <SelectTrigger className="w-[180px]">
+          <Select
+            onValueChange={async (e) => {
+              setValue("sheet", e);
+              const timeFormat = await GetDatabaseDataDateFormat(
+                watch("excelFile"),
+                e
+              );
+              setTimeFormat(timeFormat);
+            }}
+          >
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select a sheet" />
             </SelectTrigger>
             <SelectContent>
@@ -140,7 +189,39 @@ export const DatabaseForm: React.FC<DatabaseFormProps> = ({
           )}
         </div>
 
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-col gap-2">
+          <Label>
+            Select Time Format :{" "}
+            <Badge className="tracking-wider bg-blue-500 hover:bg-blue-300">
+              {timeFormat}
+            </Badge>
+          </Label>
+          <Select onValueChange={(e) => setValue("timeFormat", e)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select a time format" />
+            </SelectTrigger>
+            <SelectContent className="w-full">
+              <SelectGroup className="h-32">
+                <SelectLabel>Sheets</SelectLabel>
+                <ScrollArea>
+                  {timeFormats.map(
+                    (format, index) =>
+                      format.value.length === timeFormat.length && (
+                        <SelectItem key={index} value={format.value}>
+                          {format.label}
+                        </SelectItem>
+                      )
+                  )}
+                </ScrollArea>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          {errors.sheet && (
+            <Badge variant="destructive">This field is required</Badge>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
           {/* Years */}
           <div>
             <Label>Year :</Label>

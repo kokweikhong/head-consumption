@@ -20,6 +20,14 @@ export const handleBrowseExcelFile = async (): Promise<string> => {
   const title = "Read Excel File";
   try {
     const filePath = await BrowseExcelFile();
+    if (filePath.length === 0) {
+      await handleOpenMessageDialog({
+        messageType: "warning",
+        title: title,
+        message: "No file selected",
+      });
+      return "";
+    }
     await handleOpenMessageDialog({
       messageType: "info",
       title: title,

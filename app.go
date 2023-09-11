@@ -53,8 +53,9 @@ func (a *App) BrowseDirectory() (string, error) {
 }
 
 func (a *App) OpenMessageDialog(status, title, message string) (string, error) {
+	statusType := runtime.DialogType(status)
 	return runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
-		Type:    "info",
+		Type:    statusType,
 		Title:   title,
 		Message: message,
 	})
@@ -144,7 +145,19 @@ func (a *App) ReadManualDataFromExcel(excelFile string, sheets []string, month, 
 	return datas, nil
 }
 
-func (a *App) ReadDatabaseDataFromExcel(excelFile string, sheet string, month, year int) ([]*HeadConsumptionData, error) {
+func (a *App) GetDatabaseDataDateFormat(excelFile, sheet string) (string, error) {
+	file, err := excelize.OpenFile(excelFile)
+	if err != nil {
+		return "", err
+	}
+	date, err := file.GetCellValue(sheet, "A3")
+	if err != nil {
+		return "", err
+	}
+	return date, nil
+}
+
+func (a *App) ReadDatabaseDataFromExcel(excelFile string, sheet string, month, year int, timeFormat string) ([]*HeadConsumptionData, error) {
 	fmt.Println(excelFile, sheet, month, year)
 	file, err := excelize.OpenFile(excelFile)
 	if err != nil {
@@ -165,6 +178,7 @@ func (a *App) ReadDatabaseDataFromExcel(excelFile string, sheet string, month, y
 			continue
 		}
 
+		fmt.Printf("date is: %s\n", row[0])
 		// check if row[0] is start with number or not
 		_, err := strconv.Atoi(row[0][:1])
 		if err != nil {
@@ -172,44 +186,21 @@ func (a *App) ReadDatabaseDataFromExcel(excelFile string, sheet string, month, y
 			continue
 		}
 
-		// var date time.Time
-		// switch true {
-		// case len(row[0]) == 16:
-		// 	date, err = time.Parse("02/01/2006 15:04", row[0])
-		// 	if err != nil {
-		// 		fmt.Printf("error parsing date: %s", err)
-		// 	}
-		// case len(row[0]) == 19:
-		// 	date, err = time.Parse("02/01/2006 15:04:05", row[0])
-		// 	if err != nil {
-		// 		fmt.Printf("error parsing date: %s", err)
-		// 	}
-		// }
+		if strings.Contains(row[0], "-") {
+			row[0] = strings.ReplaceAll(row[0], "-", "/")
+		}
 
-		// if date.Year() < year-1 {
-		// 	continue
-		// }
-
-		// fmt.Println(date)
-		dateFloat, err := strconv.ParseFloat(row[0], 64)
+		date, err := time.Parse(timeFormat, row[0])
 		if err != nil {
 			fmt.Printf("error parsing date: %s", err)
 			continue
 		}
-		date, err := excelize.ExcelDateToTime(dateFloat, false)
-		// date, err = time.Parse("02/01/2006 15:04:05", row[0])
-		if err != nil {
-			log.Printf("row[0] is not a date: %s", row[0])
-			continue
-		}
 
-		fmt.Println(date)
 		data = new(HeadConsumptionData)
-		dayStart, _ := time.Parse("02/01/2006 15:04:05", fmt.Sprintf("%02d/%02d/%d 08:00:00", date.Day(), date.Month(), date.Year()))
-		dayEnd := dayStart.Add(1455 * time.Minute)
-		if date.After(dayStart) && date.Before(dayEnd) {
+		switch strings.ToLower(row[18]) {
+		case "d":
 			data.Shift = "Day"
-		} else {
+		case "n":
 			data.Shift = "Night"
 		}
 
@@ -259,10 +250,14 @@ type HeadConsumptionPlotData struct {
 }
 
 type headTypePlotData struct {
-	HeadType    string `json:"headType"`
-	HeadSurface string `json:"headSurface"`
-	ManualQty   []int  `json:"manualQty"`
-	DatabaseQty []int  `json:"databaseQty"`
+	HeadType         string `json:"headType"`
+	HeadSurface      string `json:"headSurface"`
+	ManualQty        []int  `json:"manualQty"`
+	DatabaseQty      []int  `json:"databaseQty"`
+	ManualDayQty     []int  `json:"manualDayQty"`
+	DatabaseDayQty   []int  `json:"databaseDayQty"`
+	ManualNightQty   []int  `json:"manualNightQty"`
+	DatabaseNightQty []int  `json:"databaseNightQty"`
 }
 
 func (a *App) GeneratePlotData(manualData []*HeadConsumptionData, databaseData []*HeadConsumptionData, month, year int) *HeadConsumptionPlotData {
@@ -274,6 +269,10 @@ func (a *App) GeneratePlotData(manualData []*HeadConsumptionData, databaseData [
 
 	combinedHeadConsumptionData = append(combinedHeadConsumptionData, manualData...)
 	combinedHeadConsumptionData = append(combinedHeadConsumptionData, databaseData...)
+
+	for _, data := range combinedHeadConsumptionData {
+		fmt.Println(data)
+	}
 
 	// get last day of month
 	lastDay := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, time.UTC).Day()
@@ -293,17 +292,31 @@ func (a *App) GeneratePlotData(manualData []*HeadConsumptionData, databaseData [
 
 		if _, ok := plotData.Data[fmt.Sprintf("%s (%s)", data.HeadType, data.HeadSurface)]; !ok {
 			plotData.Data[fmt.Sprintf("%s (%s)", data.HeadType, data.HeadSurface)] = &headTypePlotData{
-				HeadType:    data.HeadType,
-				HeadSurface: data.HeadSurface,
-				ManualQty:   make([]int, len(plotData.Dates)),
-				DatabaseQty: make([]int, len(plotData.Dates)),
+				HeadType:         data.HeadType,
+				HeadSurface:      data.HeadSurface,
+				ManualQty:        make([]int, len(plotData.Dates)),
+				DatabaseQty:      make([]int, len(plotData.Dates)),
+				ManualDayQty:     make([]int, len(plotData.Dates)),
+				DatabaseDayQty:   make([]int, len(plotData.Dates)),
+				ManualNightQty:   make([]int, len(plotData.Dates)),
+				DatabaseNightQty: make([]int, len(plotData.Dates)),
 			}
 		}
 
 		if data.Type == "manual" {
 			plotData.Data[fmt.Sprintf("%s (%s)", data.HeadType, data.HeadSurface)].ManualQty[index] += data.Quantity
+			if data.Shift == "Day" {
+				plotData.Data[fmt.Sprintf("%s (%s)", data.HeadType, data.HeadSurface)].ManualDayQty[index] += data.Quantity
+			} else {
+				plotData.Data[fmt.Sprintf("%s (%s)", data.HeadType, data.HeadSurface)].ManualNightQty[index] += data.Quantity
+			}
 		} else {
 			plotData.Data[fmt.Sprintf("%s (%s)", data.HeadType, data.HeadSurface)].DatabaseQty[index] += data.Quantity
+			if data.Shift == "Day" {
+				plotData.Data[fmt.Sprintf("%s (%s)", data.HeadType, data.HeadSurface)].DatabaseDayQty[index] += data.Quantity
+			} else {
+				plotData.Data[fmt.Sprintf("%s (%s)", data.HeadType, data.HeadSurface)].DatabaseNightQty[index] += data.Quantity
+			}
 		}
 	}
 

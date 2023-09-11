@@ -27,6 +27,10 @@ export namespace main {
 	    headSurface: string;
 	    manualQty: number[];
 	    databaseQty: number[];
+	    manualDayQty: number[];
+	    databaseDayQty: number[];
+	    manualNightQty: number[];
+	    databaseNightQty: number[];
 	
 	    static createFrom(source: any = {}) {
 	        return new headTypePlotData(source);
@@ -38,6 +42,10 @@ export namespace main {
 	        this.headSurface = source["headSurface"];
 	        this.manualQty = source["manualQty"];
 	        this.databaseQty = source["databaseQty"];
+	        this.manualDayQty = source["manualDayQty"];
+	        this.databaseDayQty = source["databaseDayQty"];
+	        this.manualNightQty = source["manualNightQty"];
+	        this.databaseNightQty = source["databaseNightQty"];
 	    }
 	}
 	export class HeadConsumptionPlotData {

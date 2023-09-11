@@ -14,6 +14,7 @@ import { GeneratePlotData } from "../wailsjs/go/main/App";
 
 import { OverviewChart } from "./components/overview-chart";
 import { DailyChart } from "./components/daily-chart";
+import { DataTable } from "./components/datatable";
 import {
   Select,
   SelectContent,
@@ -35,6 +36,10 @@ export interface PlotData {
       headSurface: string;
       manualQty: number[];
       databaseQty: number[];
+      manualDayQty: number[];
+      databaseDayQty: number[];
+      manualNightQty: number[];
+      databaseNightQty: number[];
     };
   };
 }
@@ -50,6 +55,7 @@ function App() {
     console.log(month, year);
     try {
       const res = await GeneratePlotData(manualData, databaseData, month, year);
+      console.log(res);
       setPlotData(res);
       await handleOpenMessageDialog({
         messageType: "info",
@@ -68,10 +74,10 @@ function App() {
 
   return (
     <main className="container">
-      <h1 className="text-4xl font-black mb-4">Head Consumption Monitoring</h1>
+      <h1 className="mb-4 text-4xl font-black">Head Consumption Monitoring</h1>
       <div className="flex gap-6">
         <div className="flex flex-col gap-2">
-          <div className="flex gap-2 items-center">
+          <div className="flex items-center gap-2">
             <span>Manual Data Exist : </span>
             <Badge>{manualData.length > 0 ? "Exist" : "Not Exist"}</Badge>
           </div>
@@ -89,7 +95,7 @@ function App() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <div className="flex gap-2 items-center">
+          <div className="flex items-center gap-2">
             <span>Database Data Exist : </span>
             <Badge>{databaseData?.length > 0 ? "Exist" : "Not Exist"}</Badge>
           </div>
@@ -110,7 +116,7 @@ function App() {
 
       {manualData.length > 0 && databaseData.length > 0 && (
         <React.Fragment>
-          <div className="flex gap-2 items-center">
+          <div className="flex items-center gap-2">
             <div>
               <Label>Select Year :</Label>
               <Select
@@ -213,6 +219,29 @@ function App() {
               );
             })}
           </div>
+
+          <Separator className="my-4" />
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Head Consumption Table - Day Shift</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataTable data={plotData} shift="day" />
+            </CardContent>
+          </Card>
+
+          <Separator className="my-4" />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Monthly Head Consumption Table - Night Shift
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataTable data={plotData} shift="night" />
+            </CardContent>
+          </Card>
         </React.Fragment>
       )}
     </main>
